@@ -12,7 +12,7 @@ import {
 } from './auth'
 import { AuthResponse, RefreshTokenResponse } from 'src/types/auth.type'
 import { isAxiosUnauthorizedError } from './utils'
-const DOMAIN = 'http://61.14.233.163:8080/api/'
+const DOMAIN = 'https://nguyenminhphat.io.vn/api/'
 class Http {
   instance: AxiosInstance
   private accessToken: string
