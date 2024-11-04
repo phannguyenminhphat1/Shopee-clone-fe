@@ -1,0 +1,29 @@
+{
+  "Aside filter": {
+    "All categories": "Tất cả danh mục",
+    "Đồng hồ": "Đồng hồ",
+    "Điện thoại": "Điện thoại",
+    "Áo thun": "Áo thun",
+    "Filter": "Bộ lọc",
+    "To": "Đến",
+    "From": "Từ",
+    "Apply": "Áp dụng",
+    "Rating": "Đánh giá",
+    "Or more": "Trở lên",
+    "Reset all": "Đặt lại tất cả",
+    "Price range": "Khoảng giá"
+  },
+  "Sort product": {
+    "Order by": "Sắp xếp theo",
+    "Popular": "Phổ Biến",
+    "Latest": "Mới Nhất",
+    "Best seller": "Bán Chạy",
+    "Price": "Giá",
+    "Price: Low to high": "Giá: Thấp đến cao",
+    "Price: High to low": "Giá: Cao đến thấp"
+  },
+  "Pagination": {
+    "Prev": "Trước",
+    "Next": "Sau"
+  }
+}

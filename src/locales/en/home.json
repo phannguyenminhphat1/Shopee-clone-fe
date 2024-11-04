@@ -1,0 +1,29 @@
+{
+  "Aside filter": {
+    "All categories": "All categories",
+    "Đồng hồ": "Đồng hồ",
+    "Điện thoại": "Điện thoại",
+    "Áo thun": "Áo thun",
+    "Filter": "Filter Search",
+    "To": "To",
+    "From": "From",
+    "Apply": "Apply",
+    "Rating": "Rating",
+    "Or more": "Or more",
+    "Reset all": "Reset all",
+    "Price range": "Price range"
+  },
+  "Sort product": {
+    "Order by": "Order by",
+    "Popular": "Popular",
+    "Latest": "Latest",
+    "Best seller": "Best seller",
+    "Price": "Price",
+    "Price: Low to high": "Price: Low to high",
+    "Price: High to low": "Price: High to low"
+  },
+  "Pagination": {
+    "Prev": "Prev",
+    "Next": "Next"
+  }
+}

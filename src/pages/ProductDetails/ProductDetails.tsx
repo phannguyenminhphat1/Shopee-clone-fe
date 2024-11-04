@@ -1,0 +1,338 @@
+import DOMPurify from 'dompurify'
+import ProductRating from '../ProductList/components/ProductRating'
+import { formatCurrency, formatNumberToSocialStyle, getIdFromNameId, rateSale } from 'src/utils/utils'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import productApi from 'src/apis/product.api'
+import { useNavigate, useParams } from 'react-router-dom'
+import { useContext, useEffect, useMemo, useRef, useState } from 'react'
+import { ProductDetail, ProductListConfig, Product as ProductType } from 'src/types/product.type'
+import QuantityController from 'src/components/QuantityController'
+import { purchaseApi } from 'src/apis/purchase.api'
+import Product from '../ProductList/components/Product'
+import { toast } from 'react-toastify'
+import { purchaseStatus } from 'src/constant/purchase'
+import path from 'src/constant/path'
+import { AppContext } from 'src/contexts/app.context'
+import { useTranslation } from 'react-i18next'
+import { convert } from 'html-to-text'
+import { Helmet } from 'react-helmet-async'
+
+export default function ProductDetails() {
+  const { t } = useTranslation('product')
+  const { isAuthenticated } = useContext(AppContext)
+  const queryClient = useQueryClient()
+  const { nameId } = useParams()
+  const id = getIdFromNameId(nameId as string)
+
+  const [currentIndexImages, setCurrentIndexImages] = useState([0, 5])
+  const [activeImage, setActiveImage] = useState('')
+  const [buyCount, setBuyCount] = useState(1)
+  const imageRef = useRef<HTMLImageElement>(null)
+  const navigate = useNavigate()
+
+  // Get product details
+  const { data: productDetailData } = useQuery({
+    queryKey: ['product', id],
+    queryFn: () => productApi.getProductDetailsApi(Number(id as string))
+  })
+  const product = productDetailData?.data.data
+
+  // CurrentImages
+  const currentImages = useMemo(
+    () => (product ? product.products.images.slice(...currentIndexImages) : []),
+    [product, currentIndexImages]
+  )
+
+  // Get Query Config cho Products liên quan
+  const queryConfig: ProductListConfig = { limit: '10', page: '1', category: product?.products.category_id }
+  // Get Products liên quan category
+  const { data: productsData } = useQuery({
+    queryKey: ['products', queryConfig],
+    queryFn: () => productApi.getProductsApi(queryConfig),
+    enabled: Boolean(product),
+    staleTime: 5 * 60 * 1000
+  })
+
+  // Use Effect set Active Image
+  useEffect(() => {
+    if (product && product?.products.images.length > 0) {
+      setActiveImage(product.products.images[0])
+    }
+  }, [product])
+
+  // Set Active Image
+  const chooseActive = (image: string) => {
+    setActiveImage(image)
+  }
+
+  // Prev and Next
+  const next = () => {
+    if (currentIndexImages[1] < (product?.products as ProductType).images.length) {
+      setCurrentIndexImages((prev) => [prev[0] + 1, prev[1] + 1])
+    }
+  }
+  const prev = () => {
+    if (currentIndexImages[0] > 0) {
+      setCurrentIndexImages((prev) => [prev[0] - 1, prev[1] - 1])
+    }
+  }
+
+  // Handle Zoom in UI
+  const handleZoom = (event: React.MouseEvent<HTMLDivElement, MouseEvent>) => {
+    const rect = event.currentTarget.getBoundingClientRect()
+    const image = imageRef.current as HTMLImageElement
+    const { naturalHeight, naturalWidth } = image
+    // Cách 1: Lấy offsetX, offsetY đơn giản khi chúng ta đã xử lý được bubble event
+    const { offsetX, offsetY } = event.nativeEvent
+    // Cách 2: Lấy offsetX, offsetY khi chúng ta không xử lý được bubble event
+    // const offsetX = event.pageX - (rect.x + window.scrollX)
+    // const offsetY = event.pageY - (rect.y + window.scrollY)
+    const top = offsetY * (1 - naturalHeight / rect.height)
+    const left = offsetX * (1 - naturalWidth / rect.width)
+    image.style.width = naturalWidth + 'px'
+    image.style.height = naturalHeight + 'px'
+    image.style.maxWidth = 'unset'
+    image.style.top = top + 'px'
+    image.style.left = left + 'px'
+  }
+
+  // Handle Zoom Out UI
+  const handleRemoveZoom = () => {
+    imageRef.current?.removeAttribute('style')
+  }
+
+  // Handle Buy Count
+  const handleBuyCount = (value: number) => {
+    setBuyCount(value)
+  }
+
+  // Add to Cart
+  const addToCartMutation = useMutation({
+    mutationFn: (body: { stores_products_id: number; buy_count: number }) => purchaseApi.addToCart(body)
+  })
+
+  const addToCart = () => {
+    if (isAuthenticated) {
+      addToCartMutation.mutate(
+        { stores_products_id: (product as ProductDetail).stores_products_id, buy_count: buyCount },
+        {
+          onSuccess: (result) => {
+            toast.success(result.data.message, { autoClose: 1000 })
+            queryClient.invalidateQueries({ queryKey: ['purchases', { status: purchaseStatus.inCart }] })
+          }
+        }
+      )
+    } else {
+      toast.error('Bạn hãy đăng nhập để thực hiện tính năng này nhé', { autoClose: 1000 })
+    }
+  }
+
+  // Buy Immediately
+  const buyNow = async () => {
+    if (isAuthenticated) {
+      const result = await addToCartMutation.mutateAsync({
+        stores_products_id: (product as ProductDetail).stores_products_id,
+        buy_count: buyCount
+      })
+      navigate(path.cart, {
+        state: {
+          stores_products_id: result.data.data.stores_products_id
+        }
+      })
+    } else {
+      navigate(path.login)
+    }
+  }
+
+  // If Product null
+  if (!product) return null
+
+  return (
+    <div className='bg-gray-200 py-6'>
+      <Helmet>
+        <title>{product.products.product_name}| Shopee Clone</title>
+        <meta
+          name='description'
+          content={convert(String(product.products.description), {
+            wordwrap: 120
+          })}
+        />
+      </Helmet>
+      <div className='container'>
+        <div className='bg-white p-4 shadow'>
+          <div className='grid grid-cols-12 gap-9'>
+            <div className='col-span-5'>
+              <div
+                className=' relative w-full cursor-zoom-in overflow-hidden pt-[100%] shadow'
+                onMouseMove={handleZoom}
+                onMouseLeave={handleRemoveZoom}
+              >
+                <img
+                  src={activeImage}
+                  alt={product.products.product_name}
+                  className='pointer-events-none absolute left-0 top-0 h-full w-full bg-white object-cover'
+                  ref={imageRef}
+                />
+              </div>
+              <div className='relative mt-4 grid grid-cols-5 gap-1'>
+                <button
+                  onClick={prev}
+                  className='outline-none absolute left-0 top-1/2 z-10 h-9 w-5 -translate-y-1/2 bg-black/20 text-white'
+                >
+                  <svg
+                    xmlns='http://www.w3.org/2000/svg'
+                    fill='none'
+                    viewBox='0 0 24 24'
+                    strokeWidth={1.5}
+                    stroke='currentColor'
+                    className='h-5 w-5'
+                  >
+                    <path strokeLinecap='round' strokeLinejoin='round' d='M15.75 19.5L8.25 12l7.5-7.5' />
+                  </svg>
+                </button>
+                {currentImages.map((img) => {
+                  const isActive = img === activeImage
+                  return (
+                    <div className='relative w-full pt-[100%]' key={img} onMouseEnter={() => chooseActive(img)}>
+                      <img
+                        src={img}
+                        alt={img}
+                        className='absolute left-0 top-0 h-full w-full cursor-pointer bg-white object-cover'
+                      />
+                      {isActive && <div className='absolute inset-0 border-4 border-primaryColor' />}
+                    </div>
+                  )
+                })}
+                <button
+                  onClick={next}
+                  className='absolute right-0 top-1/2 z-10 h-9 w-5 -translate-y-1/2 bg-black/20 text-white outline-none'
+                >
+                  <svg
+                    xmlns='http://www.w3.org/2000/svg'
+                    fill='none'
+                    viewBox='0 0 24 24'
+                    strokeWidth={1.5}
+                    stroke='currentColor'
+                    className='h-5 w-5'
+                  >
+                    <path strokeLinecap='round' strokeLinejoin='round' d='M8.25 4.5l7.5 7.5-7.5 7.5' />
+                  </svg>
+                </button>
+              </div>
+            </div>
+            <div className='col-span-7'>
+              <h1 className='text-xl font-medium uppercase'>{product.products.product_name}</h1>
+              <div className='mt-8 flex items-center'>
+                <div className='flex items-center'>
+                  <span className='mr-2 border-b border-b-primaryColor text-primaryColor'>{product.rating}</span>
+                  <ProductRating
+                    rating={Number(product.rating)}
+                    activeClassname='fill-primaryColor text-primaryColor h-4 w-4'
+                    nonActiveClassname='fill-gray-300 text-gray-300 h-4 w-4'
+                  />
+                </div>
+                <div className='mx-4 h-4 w-[1px] bg-gray-300'></div>
+                <div>
+                  <span>{formatNumberToSocialStyle(product.sold)}</span>
+                  <span className='ml-1 text-gray-500'>{t('Sold')}</span>
+                </div>
+              </div>
+              <div className='mt-8 flex items-center bg-gray-50 px-5 py-4'>
+                <div className='text-gray-500 line-through'>
+                  ₫{formatCurrency(Number(product.price_before_discount))}
+                </div>
+                <div className='ml-3 text-3xl font-medium text-primaryColor'>
+                  ₫{formatCurrency(Number(product.price))}
+                </div>
+                <div className='ml-4 rounded-sm bg-primaryColor px-1 py-[2px] text-xs font-semibold uppercase text-white'>
+                  {rateSale(Number(product.price_before_discount), Number(product.price))} {t('Product details.Off')}
+                </div>
+              </div>
+              <div className='mt-8 flex items-center'>
+                <div className='capitalize text-gray-500'>{t('Product details.Quantity')}</div>
+                <QuantityController
+                  onDecrease={handleBuyCount}
+                  onIncrease={handleBuyCount}
+                  onType={handleBuyCount}
+                  value={buyCount}
+                  max={product.stock_quantity}
+                />
+                <div className='ml-6 text-sm text-gray-500'>
+                  {product.stock_quantity} {t('Product details.Products available')}
+                </div>
+              </div>
+              <div className='mt-8 flex items-center'>
+                <button
+                  onClick={addToCart}
+                  className='flex h-12 items-center justify-center rounded-sm border border-primaryColor bg-primaryColor/10 px-5 capitalize text-primaryColor shadow-sm hover:bg-primaryColor/5'
+                >
+                  <svg
+                    enableBackground='new 0 0 15 15'
+                    viewBox='0 0 15 15'
+                    x={0}
+                    y={0}
+                    className='mr-[10px] h-5 w-5 fill-current stroke-primaryColor text-primaryColor'
+                  >
+                    <g>
+                      <g>
+                        <polyline
+                          fill='none'
+                          points='.5 .5 2.7 .5 5.2 11 12.4 11 14.5 3.5 3.7 3.5'
+                          strokeLinecap='round'
+                          strokeLinejoin='round'
+                          strokeMiterlimit={10}
+                        />
+                        <circle cx={6} cy='13.5' r={1} stroke='none' />
+                        <circle cx='11.5' cy='13.5' r={1} stroke='none' />
+                      </g>
+                      <line fill='none' strokeLinecap='round' strokeMiterlimit={10} x1='7.5' x2='10.5' y1={7} y2={7} />
+                      <line fill='none' strokeLinecap='round' strokeMiterlimit={10} x1={9} x2={9} y1='8.5' y2='5.5' />
+                    </g>
+                  </svg>
+                  {t('Product details.Add to cart')}
+                </button>
+                <button
+                  onClick={buyNow}
+                  className='fkex ml-4 h-12 min-w-[5rem] items-center justify-center rounded-sm bg-primaryColor px-5 capitalize text-white shadow-sm outline-none hover:bg-primaryColor/90'
+                >
+                  {t('Product details.Buy now')}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div className='mt-8'>
+        <div className='container'>
+          <div className='bg-white p-4 shadow'>
+            <div className='rounded bg-gray-50 p-4 text-lg capitalize text-slate-700'>
+              {t('Product details.Description')}
+            </div>
+            <div className='mx-4 mb-4 mt-12 text-sm leading-loose'>
+              <div
+                dangerouslySetInnerHTML={{
+                  __html: DOMPurify.sanitize(String(product.products.description))
+                }}
+              />
+            </div>
+          </div>
+        </div>
+
+        <div className='mt-8'>
+          <div className='container'>
+            <div className='font-bold uppercase text-primaryColor'>{t('Product details.You may also like')}</div>
+            {productsData && (
+              <div className='mt-6 grid grid-cols-2 gap-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6'>
+                {productsData.data.data.products.map((product) => (
+                  <div className='col-span-1' key={product.stores_products_id}>
+                    <Product product={product} />
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
