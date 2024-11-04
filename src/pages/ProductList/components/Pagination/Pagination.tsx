@@ -1,4 +1,4 @@
-import classNames from 'classNames'
+import classNames from 'classnames'
 import { useTranslation } from 'react-i18next'
 import { createSearchParams, Link } from 'react-router-dom'
 import path from 'src/constant/path'

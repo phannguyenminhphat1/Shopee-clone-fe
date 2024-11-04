@@ -1,5 +1,5 @@
 import path from 'src/constant/path'
-import classNames from 'classNames'
+import classNames from 'classnames'
 import { createSearchParams, Link, useNavigate } from 'react-router-dom'
 import Button from 'src/components/Button'
 import { Category } from 'src/types/category.type'
