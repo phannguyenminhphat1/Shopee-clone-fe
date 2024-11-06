@@ -13,8 +13,8 @@ import Button from 'src/components/Button'
 import { Omit } from 'lodash'
 import { Helmet } from 'react-helmet-async'
 
-type FormData = Omit<Schema, 'price_min' | 'price_max'>
-const registerSchema = schema.omit(['price_min', 'price_max'])
+type FormData = Omit<Schema, 'price_min' | 'price_max' | 'product_name'>
+const registerSchema = schema.omit(['price_min', 'price_max', 'product_name'])
 export default function Register() {
   const {
     register,
@@ -34,7 +34,7 @@ export default function Register() {
     registerMutation.mutate(data, {
       onSuccess: (result) => {
         toast.success(result.data.message, {
-          autoClose: 2000
+          autoClose: 1000
         })
         reset()
       },
@@ -131,7 +131,7 @@ export default function Register() {
               <div className='mt-3'>
                 <Button
                   type='submit'
-                  className='flex  w-full items-center justify-center bg-red-500 px-2 py-4 text-sm uppercase text-white outline-none transition-all hover:bg-red-600'
+                  className='flex w-full items-center justify-center bg-red-500 px-2 py-4 text-sm uppercase text-white outline-none transition-all hover:bg-red-600'
                   isLoading={registerMutation.isPending}
                   disabled={registerMutation.isPending}
                 >
